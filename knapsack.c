@@ -1,15 +1,19 @@
 /**	Algorithms Analysis Homework3 Knapsack Problem
 *
 *	Student ID: 20800399
-*	Author: 유예본.
+*	Author: Yebon You.
 *
-*	(참고) 
-*	채점하시는 분의 편의를 위해 Brute Force의 제한 시간을 바로 아래 BRUTE_FORCE_TIME_LIMIT_SEC 에 지정해 뒀습니다.
-*	초 단위로 작동하며, 현재는 주어진 조건에 맞게 20분으로 설정하기 위해 1200으로 되어있습니다.
+*	(References) 
+*	For the convenience of a tutor, the time limit of  the Brute Force algorithm has been set in BRUTE_FORCE_TIME_LIMIT_SEC,
+*	as you can see right below.
 *
-*	N=30 부터는 5분이상이 걸리기 때문에 빠른 확인을 위해서는 BRUTE_FORCE_TIME_LIMIT_SEC 를 1로 설정하시면 됩니다.
+*	The initial value is 1200 for the given condition in homework which is 20 minutes. 
 *
-*   N=x 에서 Time Over 가 발생했다면 x 이후의 input에 대해서는 실행하지 않고 time over를 출력하도록 했습니다.
+*	If you want fast checking for this code, set the value 'N' to '1' 
+*	cause BruteForce algorithm takes more than 5 minutes 
+*	if the value 'N' is greater than or equal to 30 which is given restrictions for 'N' (10, 20, 30, ...).
+*
+*  	The program ignores next values of 'N' and prints out "time over" if the Time Over has occurred for the given value 'x' for the 'N'.
 */
 
 #define BRUTE_FORCE_TIME_LIMIT_SEC 1200;
@@ -26,7 +30,7 @@
 typedef enum { false, true } bool;
 int timeOver = false;
 
-//branch and bound 에서 사용 될 Priority Queue와 Node 정의
+//Definition of the Priority Queue which will be used for Branch & Bound algorithm
 typedef struct PQ *pq;
 typedef struct PQ {
 	struct Node* node;
@@ -43,7 +47,7 @@ typedef struct Node {
 	struct Node* right;
 }Node;
 
-//주어진 input 개수에 따라 만들어진 item을 담을 구조체
+//Definition of the structure which contains items according to given input amounts
 typedef struct {
 	int benefit;
 	int weight;
@@ -52,32 +56,32 @@ typedef struct {
 
 
 
-//주어진 input 개수에 따라 무작위로 benefit, weight를 정의하고 
-//각각의 경우에 따라 DP, Greedy, BruteForce, BranchBound 계산 method호출
+//Randomly generate benefit, weight values depend on the given input amounts.
+//For each case, this function calls DP, Greedy, BruteForce, BranchBound calculating method
 void benefit_weight_generator(int N, FILE* fp);
 
 
-//주어진 4가지 접근방법에 따라 Max Benefit을 계산하는 method
+//Functions calculate Max Benefit value with given four algorithms
 void dynamicProgramming(Item* item, int N, int W, FILE* fp);
 void greedy(Item* item, int N, int W, FILE* fp);
 void bruteForce(Item* item, int N, int W, FILE* fp);
 void branchBound(Item* item, int N, int W, FILE* fp);
 
 
-/********** Greedy 관련 method **********/
-//Greedy에서 benefitPerWeight에 따라 오름차순으로 item을 정렬하기 위해서 heapsort 사용
-//(Quicksort, Mergesort 사용시 Stack Overflow 발생하므로 Heapsort사용)
-//Descending order heapsort를 구현하기 위한 Min Heap관련 method
+/********** Greedy related funtions **********/
+//Heapsort is used for sorting items in ascending order depends on the benefitPerWeight value while Greedy algorithm is working
+//(Used heapsort because Stack Overflow occurs if Quicksort or Mergesort is used)
+//MinHeap related methods for implementing heapsort in descending order
 void buildMinHeap(Item* arr, int size);
 void minHeapify(Item* arr, int size, int k);
 void heapSort(Item* arr, int size);
 void exch(Item* a, Item* b);
 
 
-/********** Branch & Bound 관련 method**********/
+/********** Branch & Bound related methods**********/
 float boundCalculator(Node* node, Item* item, int N, int MAX, int level, int curBenefit, int curWeight);
 
-Node copyNode(Node* node); //priority queue에 node를 넣을 때 값들만 copy한 새로운 Node를 만들어서 enqueue하기 위한 copy method
+Node copyNode(Node* node); //This copy method will be used when pushing nodes into the priority queue. I should refactor the codes related to this function later cause there's a way to enqueue nodes into PQ without copying.
 
 //Priority Queue
 pq newPQ(int capacity);
@@ -159,30 +163,29 @@ void bruteForce(Item* item, int N, int MAX, FILE* fp){
 	int j, n = N, W = MAX, curBenefit, curWeight, maxBenefit = 0;
 	unsigned long long int i;
 
-	//item배열의 index 1 ~ index N 까지 체크하던 것을
-	//안정적인 비트연산을 위해 index 0 ~ index N-1 까지로 복사하여 실행
+	//The values in item array are copied to another array the index 1 to N is changed to 0 to N-1 for the stable bit operation.
 	Item* copy_item = (Item*)malloc(sizeof(Item)*N);
 	for (int i = 0; i < N; i++){
 		copy_item[i] = item[i + 1];
 	}
 	
-	//ULL을 붙이지 않으면 32비트 연산까지만 가능하므로 64비트 연산을 위해서 ULL 사용	
-	//2^n을 의미하는 upperbound 만큼 loop를 돌게 됨
+	//ULL is used for the 64bit operation. Without ULL, 32bit operation is possible only.	
+	//The loop runs to upper bound which means 2^n
 	unsigned long long upperbound = 1ULL << n;
 	
 	loopStartTime = clock();
 	for (i = 0; i < upperbound; i++){
 		checkPoint = clock();
 		loopRunningTime = (float)(checkPoint - loopStartTime) / (CLOCKS_PER_SEC);
-		if (loopRunningTime > timeLimit){ //loop의 동작시간이 BRUTE_FORCE_TIME_LIMIT_SEC 보다 크면 종료.
-			timeOver = true; //이후에 들어오는 N에 대해 brute force를 수행하지 않도록 하기 위함.
+		if (loopRunningTime > timeLimit){ //Stop running the program if working time of the loop is greater than BRUTE_FORCE_TIME_LIMIT_SEC
+			timeOver = true; //In order not to run BruteForce for the next 'N' values.
 			break;
 		}
 		curBenefit = 0;
 		curWeight = 0;
 		for (j = 0; j < n; j++){
-			if (i & (1 << j)){	// i의 j번째 비트가 1인지 아닌지를 의미한다. 1이면 넣고 아니면 넣지 않는다.
-				if (copy_item[j].weight <= W - curWeight){ //이번 item을 넣을 수 있는 경우
+			if (i & (1 << j)){	// This means 'jth' bit in 'i' is whether '1' or not. Only takes if 'jth' bit in 'i' is '1'.
+				if (copy_item[j].weight <= W - curWeight){ //If current item is promising
 					curWeight += copy_item[j].weight;
 					curBenefit += copy_item[j].benefit;
 				}
@@ -213,13 +216,13 @@ void dynamicProgramming(Item* item, int N, int MAX, FILE* fp){
 
 	int n = N, W = MAX, maxBenefit = 0;
 
-	int* pre = (int*)calloc((W + 1), sizeof(int)); //이전 item까지만 고려했을때, 주어진w(1~250)에따라 가질수있는 Benefit
+	int* pre = (int*)calloc((W + 1), sizeof(int)); //The benefit, as long as considering items bounded to former one depends on the given 'w' which is from 1 to 250.
 	for (int i = 1; i <= N; i++){
-		int* cur = (int*)calloc((W + 1), sizeof(int)); //현재 넣으려는 item에 대한 benefit
+		int* cur = (int*)calloc((W + 1), sizeof(int)); //The benefit for the current item which is waiting for being pushed.
 		for (int w = 1; w <= W; w++){
-			if (item[i].weight <= w){ // 이번에 넣으려는 item이 주어진 w 보다 작거나 같은경우 (넣을수있는경우)
+			if (item[i].weight <= w){ // If the current item is smaller than or equal to the given 'w' (which means it is able to be pushed)
 				int leftSpace = w - item[i].weight;
-				if (item[i].benefit + pre[leftSpace] > pre[w]) // 이번 item을 넣는게 benefit이 더 큰 경우
+				if (item[i].benefit + pre[leftSpace] > pre[w]) // The benefit gets bigger if the current item is being pushed
 					cur[w] = item[i].benefit + pre[leftSpace];
 				else
 					cur[w] = pre[w];
@@ -230,7 +233,7 @@ void dynamicProgramming(Item* item, int N, int MAX, FILE* fp){
 			if (cur[w] > maxBenefit)
 				maxBenefit = cur[w];
 		}
-		// 현재까지 계산 한 결과를 pre에 담고 cur는 free해 줌으로써 총 2개의 1D array만 사용하여 계산하기 위함
+		//In order to use only two 1D arrays by freeing 'cur' array and saving the result by far to the 'pre' array.
 		for (int j = 0; j <= W; j++) pre[j] = cur[j];
 		free(cur);
 	}
@@ -259,19 +262,19 @@ void greedy(Item* item, int N, int MAX, FILE* fp){
 		item[i].benefitPerWeight = (float)item[i].benefit / (float)item[i].weight;
 	}
 
-	//NlogN의 time complexity를 가지는 Quicksort, Mergesort, Heapsort 중
-	//Quicksort, Mergesort는 재귀호출로 인해 N이 커지면 Stack Overflow가 발생하므로 heapsort사용
-	//단위무게당 benefit이 큰 item을 기준으로 내림차순으로 정렬한다
+	//Using heapsort, because among sorting methods like Quicksort, Mergesort, and Heapsort of which have NlogN of time complexity,
+	//Quicksort, and Mergesort using recursive call generate Stack Overflow if the 'N' goes bigger and bigger.
+	//Sorting item in descending order according to the benefit per unit weight
 	heapSort(item, N);
 
 	i = 1;
 	while (i <= n && weightSum < W){
-		if (weightSum + item[i].weight > W){ // item을 쪼개지 않고는 더이상 배낭에 넣을 수 없는 경우
+		if (weightSum + item[i].weight > W){ // If no more item is able to be pushed without being fractionalized.
 			fraction = (float)(W - weightSum) / (float)item[i].weight;
 			weightSum = weightSum + item[i].weight * fraction;
 			maxBenefit = (float)maxBenefit + item[i].benefit * fraction;
 		}
-		else{ // item을 쪼개지 않고 넣을 수 있는 경우
+		else{ // The item is able to be pushed into the knapsack without being fractionalized.
 			weightSum = weightSum + item[i].weight;
 			maxBenefit = maxBenefit + item[i].benefit;
 		}
@@ -303,20 +306,20 @@ void branchBound(Item* item, int n, int W, FILE* fp){
 	node->left = NULL;
 	node->right = NULL;
 
-	//enqueue하기위해서
+	//for enqueue(need to be revised)
 	Node copiedNode = copyNode(node);
 
-	//root item을 Queue에 넣고 시작
+	//Start with pushing root item into PQ.
 	enqueue(p, copiedNode);
 
-	//Queue가 빌 때까지 반복
+	//Iterate until the queue is empty
 	while (!isEmpty(p)){
-		Node testNode = dequeue(p); //Queue에 있는 값들 중 가장 bound값이 큰 값을 dequeue하며 시작
+		Node testNode = dequeue(p); //Starts with dequeuing a value which has the biggest bound among the queue.
 
-		//Promising하면 if문 실행
+		//If promising
 		if (testNode.weight < MAX && testNode.bound > testNode.benefit && testNode.bound > MaxBenefit){
-			//현재 Priority Queue내에서 가장 큰 bound 값을 가진 노드의 bound가 MaxBenefit 보다 작거나 (지금 Queue에 있는 애들은 뭘 해도 현재 Max보다 커질 수 없다)
-			//현재 Priorioty Queue에서 뽑아낸 값의 benefit이 bound보다 크면 종료 (더 진행해도 benefit이 커질 수 없다)
+			//Within current PQ, the node which has the biggest bound value can not be smaller than MaxBenefit or greater than Max
+			//Exit the function if the benefit extracted from current PQ is bigger than bound value (The benefit never gets bigger even if proceed further)
 			if (MaxBenefit > (p->node[1]).bound && testNode.benefit > testNode.bound){
 				MaxBenefit = testNode.benefit;
 				break;
@@ -392,7 +395,7 @@ Node copyNode(Node* node){
 	return copyNode;
 }
 
-/***************Heapsort, MinHeap 관련 메소드 ********************/
+/***************Heapsort, MinHeap related methods ********************/
 
 void buildMinHeap(Item* item, int size){
 	for (int i = size / 2; i >= 1; i--)
@@ -436,7 +439,7 @@ void exch(Item* a, Item* b){
 
 
 
-/*************** Priority Queue 관련 메소드 ********************/
+/*************** Priority Queue related methods ********************/
 
 pq newPQ(int capacity) {
 	pq p = (pq)malloc(sizeof(PQ));
@@ -452,15 +455,15 @@ int size(pq p) {
 }
 
 int resize(pq p, int newCapacity) {
-	p->node = (Node*)realloc(p->node, sizeof(Node)*newCapacity); //newCapacity만큼 새로 node를 동적할당 한다
+	p->node = (Node*)realloc(p->node, sizeof(Node)*newCapacity); //Dynamic allocation to new node according to the newCapacity
 	return 0;
 }
 
 void enqueue(pq p, Node node) {
 	if (isFull(p)){
-		resize(p, (p->capacity) * 2);//p의 capacity가 가득 찼을 경우 resize()를 불러 공간을 재할당 한다. 
-		//resize()함수의 newCapacity로 현재 capacity의 2배만큼 계산하여 넘겨준다
-		p->capacity *= 2; //capacity의 숫자를 두배로 늘려 재설정 한다
+		resize(p, (p->capacity) * 2);//Call resize() to reallocate the existing space if capacity of p is full
+					         //Calculate current capacity*2 and pass it to the newCapacity in resize() function
+		p->capacity *= 2; //reset capacity with new capacity amounts
 	}
 
 	p->node[++p->N] = node;
@@ -472,9 +475,9 @@ Node dequeue(pq p) {
 	swap(p, 1, p->N--);
 	sink(p, 1);
 
-	if ((p->N > 0) && (p->N == (p->capacity - 1) / 4)){ // 실제 들어있는 N의 개수가 capacity의 1/4이 되었을 경우 
-		resize(p, (p->capacity) / 2);					// resize함수를 통해 newCapacity로 현재 capacity의 1/2만큼 보내어 재할당 한다
-		p->capacity /= 2;// capacity의 숫자를 반으로 줄여 재설정 한다
+	if ((p->N > 0) && (p->N == (p->capacity - 1) / 4)){ // If counts of N becomes 1/4 of capacity
+		resize(p, (p->capacity) / 2);	// Reallocate capacity to 1/2 of current capacity by using resize() function with newCapacity amounts
+		p->capacity /= 2;// reset capacity
 	}
 	return max;
 }
